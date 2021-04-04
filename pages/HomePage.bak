@@ -1,0 +1,242 @@
+import React, {useState} from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  Modal,
+  Pressable,
+  Alert,
+  Dimensions,
+  TextInput,
+  FlatList,
+} from 'react-native';
+import Icon from 'react-native-vector-icons/FontAwesome';
+import EachItem from '../components/EachItem';
+const generatePassword = () => {
+  const length = 9,
+    charset =
+      'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$';
+  let retVal = '';
+  for (let i = 0, n = charset.length; i < length - 1; ++i) {
+    retVal += charset.charAt(Math.floor(Math.random() * n));
+  }
+  retVal += '@';
+  return retVal;
+};
+
+const HomePage = props => {
+  const [username, setUsername] = useState({value: '', error: ''});
+  const [password, setPassword] = useState({value: '', error: ''});
+  const [siteName, setSiteName] = useState({value: '', error: ''});
+
+  const checkIfError = () => {
+    if (
+      username.value.length < 2 ||
+      password.value.length < 8 ||
+      siteName.value.length < 2
+    ) {
+      return true;
+    } else {
+      return false;
+    }
+  };
+  const save = () => {
+    const errorExist = checkIfError();
+    if (errorExist) {
+      if (username.value.length < 2) {
+        setUsername(prev => ({...prev, error: 'too short!'}));
+      } else {
+        setUsername(prev => ({...prev, error: ''}));
+      }
+      if (siteName.value.length < 2) {
+        setSiteName(prev => ({...prev, error: 'too short!'}));
+      } else {
+        setSiteName(prev => ({...prev, error: ''}));
+      }
+      if (password.value.length < 8) {
+        setPassword(prev => ({...prev, error: 'try another!'}));
+      } else {
+        setPassword(prev => ({...prev, error: ''}));
+      }
+    } else {
+      props.onSave({
+        username: username.value,
+        siteName: siteName.value,
+        password: password.value,
+      });
+      setUsername({value: '', error: ''});
+      setSiteName({value: '', error: ''});
+      setPassword({value: '', error: ''});
+      props.close();
+    }
+  };
+  return (
+    <View style={styles.homePage}>
+      {props.credentials.length !== 0 ? (
+        <FlatList
+          style={styles.list}
+          data={props.credentials}
+          keyExtractor={data => data.id}
+          renderItem={data => (
+            <EachItem
+              data={data.item}
+              delete={() => props.delete(data.item.id)}
+            />
+          )}
+        />
+      ) : (
+        <Text>Nothing to show</Text>
+      )}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={props.modalVisible}
+        onRequestClose={() => {
+          Alert.alert('Modal has been closed.');
+          props.close();
+        }}>
+        <View style={styles.centeredView}>
+          <View style={styles.modalView}>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                onChangeText={e => setSiteName(prev => ({...prev, value: e}))}
+                value={siteName.value}
+                placeholder="Enter site name"
+                returnKeyType="next"
+              />
+              {siteName.error.length > 0 && (
+                <Text style={styles.errorText}>{siteName.error}</Text>
+              )}
+            </View>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                onChangeText={e => setUsername(prev => ({...prev, value: e}))}
+                value={username.value}
+                placeholder="Enter user name"
+              />
+              {username.error.length > 0 && (
+                <Text style={styles.errorText}>{username.error}</Text>
+              )}
+            </View>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                onChangeText={e => setPassword(prev => ({...prev, value: e}))}
+                textContentType="password"
+                value={password.value}
+                secureTextEntry={true}
+                placeholder="Enter password"
+              />
+              {password.error.length > 0 && (
+                <Text style={styles.errorText}>{password.error}</Text>
+              )}
+            </View>
+            <Pressable style={styles.close} onPress={() => props.close()}>
+              <Icon name="times" size={24} color="#ccc" />
+            </Pressable>
+            <View style={styles.buttonContainer}>
+              <Pressable
+                style={[styles.button, styles.buttonClose]}
+                onPress={() =>
+                  setPassword(prev => ({...prev, value: generatePassword()}))
+                }>
+                <Text style={styles.textStyle}>Generate Password</Text>
+              </Pressable>
+              <Pressable style={[styles.button, styles.save]} onPress={save}>
+                <Text style={styles.textStyle}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+};
+
+export default HomePage;
+
+const styles = StyleSheet.create({
+  homePage: {
+    flex: 1,
+    width: '100%',
+  },
+  list: {
+    flex: 1,
+  },
+  errorText: {
+    fontSize: 10,
+    color: 'red',
+    alignSelf: 'flex-start',
+    marginLeft: 30,
+  },
+  inputContainer: {
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  centeredView: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    marginTop: 22,
+  },
+  modalView: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    width: Dimensions.get('window').width,
+    height: (Dimensions.get('window').height / 3) * 2,
+    padding: 35,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  button: {
+    borderRadius: 4,
+    padding: 10,
+    elevation: 2,
+  },
+  buttonOpen: {
+    backgroundColor: '#F194FF',
+  },
+  close: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+  },
+  buttonClose: {
+    backgroundColor: '#2196F3',
+  },
+  save: {
+    backgroundColor: '#42f56f',
+  },
+  textStyle: {
+    color: 'white',
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  modalText: {
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  input: {
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    height: 40,
+    width: '90%',
+    margin: 12,
+    borderWidth: 1,
+  },
+  buttonContainer: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+});

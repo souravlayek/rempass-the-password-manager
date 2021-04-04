@@ -1,0 +1,152 @@
+import React, {useEffect, useRef, useState} from 'react';
+import {
+  View,
+  Text,
+  AppState,
+  StyleSheet,
+  Alert,
+  Dimensions,
+} from 'react-native';
+import FingerprintScanner from 'react-native-fingerprint-scanner';
+import HomePage from './pages/HomePage';
+import Icon from 'react-native-vector-icons/FontAwesome';
+import {generateId, performEncription} from './config/helper';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import FloatingActionButton from './components/FloatingActionButton';
+import Button from './components/Button';
+import LockScreen from './pages/LockScreen';
+import 'react-native-gesture-handler';
+import MainNavigation from './navigation/MainNavigation';
+const App = () => {
+  const [modalState, setModalState] = useState(false);
+  const [credentials, setCredentials] = useState([]);
+
+  const [state, setState] = useState();
+  const [authenticated, setAuthenticated] = useState(false);
+  const appState = useRef(AppState.currentState);
+  const [appStateVisible, setAppStateVisible] = useState(appState.current);
+  const getData = async () => {
+    try {
+      const value = await AsyncStorage.getItem('@credentials');
+      if (value !== null) {
+        // value previously stored
+        setCredentials(JSON.parse(await value));
+      }
+    } catch (e) {
+      // error reading value
+    }
+  };
+  useEffect(() => {
+    // AsyncStorage.removeItem('@credentials');
+    updateFingerPrintHandler();
+    getData();
+  }, []);
+
+  // app state change a
+  useEffect(() => {
+    AppState.addEventListener('change', _handleAppStateChange);
+
+    return () => {
+      AppState.removeEventListener('change', _handleAppStateChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    AsyncStorage.setItem('@credentials', JSON.stringify(credentials));
+  }, [credentials]);
+  const _handleAppStateChange = nextAppState => {
+    if (
+      appState.current.match(/inactive|background/) &&
+      nextAppState === 'active'
+    ) {
+      setAuthenticated(false);
+    }
+    appState.current = nextAppState;
+    setAppStateVisible(appState.current);
+  };
+  const allDeleteHandler = () => {
+    Alert.alert('Warning', 'Do you want to delete all', [
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          AsyncStorage.removeItem('@credentials');
+          setCredentials([]);
+        },
+      },
+      {text: 'Cancel', style: 'cancel'},
+    ]);
+  };
+  const authenticateFingerprint = () => {
+    if (!authenticated) {
+      if (state !== undefined) {
+        if (state.biometryType !== undefined) {
+          FingerprintScanner.authenticate({
+            title: 'Welcome',
+            description: 'Enter your finger print',
+          })
+            .then(() => {
+              // props.handlePopupDismissed();
+              setAuthenticated(true);
+            })
+            .catch(error => {
+              // props.handlePopupDismissed();
+            });
+          FingerprintScanner.release();
+        }
+      } else {
+        updateFingerPrintHandler();
+      }
+    }
+  };
+
+  const updateFingerPrintHandler = () => {
+    FingerprintScanner.isSensorAvailable()
+      .then(biometryType => setState({biometryType}))
+      .catch(error => setState({errorMessage: error.message}));
+  };
+  useEffect(() => {
+    authenticateFingerprint();
+  }, [state, authenticated]);
+
+  const saveHandler = async data => {
+    const encriptedData = await performEncription(JSON.stringify(data));
+    const id = await generateId();
+    const dataToSave = {
+      id: id,
+      siteName: data.siteName,
+      data: encriptedData,
+    };
+    setCredentials(prev => [...prev, dataToSave]);
+  };
+  const deleteHandler = id => {
+    Alert.alert('Warning', 'Do you want to delete this item', [
+      {
+        text: 'yes',
+        style: 'destructive',
+        onPress: () => {
+          const updatedList = credentials.filter(item => item.id !== id);
+          setCredentials(updatedList);
+        },
+      },
+      {
+        text: 'No',
+        style: 'cancel',
+      },
+    ]);
+  };
+  if (!authenticated) {
+    authenticateFingerprint();
+    return (
+      <View>
+        <Text>Please authenticate first</Text>
+        <Button clicked={authenticateFingerprint}>
+          <Text>Press to authenticate</Text>
+        </Button>
+      </View>
+    );
+  }
+  return <MainNavigation />;
+};
+
+export default App;
